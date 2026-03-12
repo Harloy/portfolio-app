@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS users (
     avatar_url TEXT,
     created_at TIMESTAMP DEFAULT NOW()
 );
-
 ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;
 
 CREATE TABLE IF NOT EXISTS portfolios (
@@ -24,7 +23,6 @@ CREATE TABLE IF NOT EXISTS portfolios (
     theme       TEXT DEFAULT '{}',
     created_at  TIMESTAMP DEFAULT NOW()
 );
-
 ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS blocks (
@@ -33,14 +31,15 @@ CREATE TABLE IF NOT EXISTS blocks (
     type         TEXT NOT NULL,
     label        TEXT,
     content      TEXT,
+    style        TEXT DEFAULT '{}',
     position     INTEGER DEFAULT 0
 );
+ALTER TABLE blocks ADD COLUMN IF NOT EXISTS style TEXT DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS tags (
     id   SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
 );
-
 CREATE TABLE IF NOT EXISTS portfolio_tags (
     portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
     tag_id       INTEGER REFERENCES tags(id) ON DELETE CASCADE,

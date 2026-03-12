@@ -1,8 +1,9 @@
-export default function TextBlock({ content }) {
+export default function TextBlock({ content, label, style }) {
   if (!content) return null
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm">
-      <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+    <div className="p-6" style={style}>
+      {label && <p className="text-xs opacity-50 uppercase tracking-wide mb-2">{label}</p>}
+      <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
     </div>
   )
 }

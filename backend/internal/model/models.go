@@ -32,5 +32,6 @@ type Block struct {
     Type        string `json:"type"`
     Label       string `json:"label"`
     Content     string `json:"content"`
+    Style       string `json:"style"`
     Position    int    `json:"position"`
 }

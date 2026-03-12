@@ -11,6 +11,11 @@ export default function Header() {
     navigate('/')
   }
 
+    function goToPortfolio() {
+    if (user?.username) navigate(`/${user.username}`)
+  }
+
+
   return (
     <header className="bg-white border-b border-gray-200">
       <div className="max-w-5xl mx-auto px-4 py-4 flex justify-between items-center">
@@ -20,11 +25,15 @@ export default function Header() {
         </Link>
 
         <nav className="flex gap-6 items-center">
-          <Link to="/search" className="text-gray-600 hover:text-gray-900 text-sm">
-            Поиск
-          </Link>
+
           {user ? (
             <div className="flex items-center gap-3">
+               <Link
+                to={`/${user.username}`}
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Портик
+              </Link>
               <Link
                 to="/my"
                 className="text-sm text-gray-600 hover:text-gray-900"

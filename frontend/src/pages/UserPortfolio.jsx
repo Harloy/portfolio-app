@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   DndContext, closestCenter,
@@ -11,11 +11,12 @@ import {
   verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import BlockRenderer from '../components/blocks/BlockRenderer'
-import BlockEditor   from '../components/blocks/BlockEditor'
-import ThemeEditor   from '../components/ThemeEditor'
-import { useTheme }  from '../hooks/useTheme'
-import useAuthStore  from '../store/authStore'
+import BlockRenderer    from '../components/blocks/BlockRenderer'
+import BlockEditor      from '../components/blocks/BlockEditor'
+import BlockStyleEditor from '../components/blocks/BlockStyleEditor'
+import ThemeEditor      from '../components/ThemeEditor'
+import { useTheme }     from '../hooks/useTheme'
+import useAuthStore     from '../store/authStore'
 import { savePortfolio } from '../api/portfolio'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
@@ -32,6 +33,53 @@ const CATEGORY_LABELS = {
   photo: 'Фотограф', motion: 'Аниматор', music: 'Музыкант',
 }
 
+const TEMPLATES = [
+  {
+    id: 'illustrator', label: '🎨 Художник / Иллюстратор',
+    tip: 'Покажи процесс работы — скетчи и финал рядом работают лучше, чем просто результат.',
+    blocks: [
+      { type: 'text',  label: 'О себе' },
+      { type: 'image', label: 'Лучшая работа' },
+      { type: 'case',  label: 'Кейс проекта' },
+      { type: 'image', label: 'Ещё работы' },
+    ]
+  },
+  {
+    id: 'designer', label: '💻 Дизайнер',
+    tip: 'Описывай задачу и результат — клиенты покупают решение проблемы, а не красоту.',
+    blocks: [
+      { type: 'text', label: 'О себе' },
+      { type: 'case', label: 'Кейс #1' },
+      { type: 'case', label: 'Кейс #2' },
+      { type: 'text', label: 'Контакты' },
+    ]
+  },
+  {
+    id: 'photographer', label: '📷 Фотограф',
+    tip: 'Первые три фото решают всё — ставь самые сильные работы в начало.',
+    blocks: [
+      { type: 'image', label: 'Обложка' },
+      { type: 'text',  label: 'О себе' },
+      { type: 'image', label: 'Галерея' },
+      { type: 'video', label: 'Showreel' },
+    ]
+  },
+  {
+    id: 'musician', label: '🎵 Музыкант',
+    tip: 'Добавь SoundCloud или YouTube — текст без звука не продаёт музыку.',
+    blocks: [
+      { type: 'text',  label: 'О себе' },
+      { type: 'audio', label: 'Треки' },
+      { type: 'video', label: 'Живое выступление' },
+    ]
+  },
+  {
+    id: 'empty', label: '⬜ Пустой шаблон',
+    tip: 'Строй с нуля — ты лучше знаешь что нужно.',
+    blocks: []
+  },
+]
+
 const BLOCK_TYPES = [
   { type: 'text',     label: '📝 Текст',          desc: 'Описание, био, контакты' },
   { type: 'image',    label: '🖼 Изображение',    desc: 'Ссылка на Imgur' },
@@ -41,12 +89,10 @@ const BLOCK_TYPES = [
   { type: 'location', label: '📍 Местоположение', desc: 'Адрес и карта' },
 ]
 
-const BLOCK_ICONS = {
-  text: '📝', image: '🖼', video: '▶️',
-  audio: '🎵', case: '📁', location: '📍',
-}
+const BLOCK_ICONS = { text:'📝', image:'🖼', video:'▶️', audio:'🎵', case:'📁', location:'📍' }
 
-function TOCBlock({ block, onRemove, onUpdate, isActive, onSelect }) {
+function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, isActive, onSelect }) {
+  const [showStyle, setShowStyle] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: block.id })
 
@@ -54,22 +100,39 @@ function TOCBlock({ block, onRemove, onUpdate, isActive, onSelect }) {
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      className={`rounded-xl border transition-colors ${isActive ? 'border-black bg-gray-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}
+      className={`rounded-xl border transition-colors ${
+        isActive ? 'border-black bg-gray-50' : 'border-gray-200 bg-white hover:border-gray-300'
+      }`}
     >
       <div className="flex items-center gap-2 p-3">
         <button {...attributes} {...listeners}
-          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none text-lg">
+          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none">
           ⠿
         </button>
-        <span>{BLOCK_ICONS[block.type]}</span>
-        <button onClick={onSelect} className="flex-1 text-left text-sm text-gray-700 hover:text-gray-900 truncate">
+        <span className="text-sm">{BLOCK_ICONS[block.type]}</span>
+        <button onClick={onSelect}
+          className="flex-1 text-left text-sm text-gray-700 hover:text-gray-900 truncate">
           {block.label}
         </button>
-        <button onClick={onRemove} className="text-gray-300 hover:text-red-400 transition-colors text-sm">✕</button>
+        <button onClick={() => setShowStyle(s => !s)}
+          className={`text-xs px-1 transition-colors ${showStyle ? 'text-gray-700' : 'text-gray-300 hover:text-gray-500'}`}
+          title="Стиль блока">🎨</button>
+        <button onClick={onRemove}
+          className="text-gray-300 hover:text-red-400 transition-colors text-sm">✕</button>
       </div>
+
       {isActive && (
         <div className="px-3 pb-3 border-t border-gray-100 pt-2">
-          <BlockEditor block={block} onChange={(content) => onUpdate(block.id, content)} />
+          <BlockEditor block={block} onChange={content => onUpdate(block.id, content)} />
+        </div>
+      )}
+
+      {showStyle && (
+        <div className="px-3 pb-3 border-t border-gray-100 pt-2">
+          <BlockStyleEditor
+            style={block.style}
+            onChange={style => onUpdateStyle(block.id, style)}
+          />
         </div>
       )}
     </div>
@@ -81,37 +144,37 @@ export default function UserPortfolio() {
   const { user }     = useAuthStore()
   const queryClient  = useQueryClient()
 
-  const { data: portfolio, isLoading, error } = useQuery({
+  const { data: portfolio, isLoading } = useQuery({
     queryKey: ['portfolio-user', username],
     queryFn:  () => fetchByUsername(username),
   })
 
-  const isOwner  = user?.username === username
-  const isEmpty  = !isLoading && portfolio === null
+  const isOwner = user?.username === username
+  const isEmpty = !isLoading && portfolio === null
 
-  const [mode, setMode]            = useState(null)
-  const [blocks, setBlocks]        = useState([])
-  const [theme, setTheme]          = useState('{}')
-  const [title, setTitle]          = useState('')
-  const [category, setCategory]    = useState('')
-  const [activeBlock, setActive]   = useState(null)
-  const [showAddBlock, setShowAdd] = useState(false)
-  const [saving, setSaving]        = useState(false)
+  const [mode, setMode]             = useState(null)
+  const [blocks, setBlocks]         = useState([])
+  const [theme, setTheme]           = useState('{}')
+  const [title, setTitle]           = useState('')
+  const [category, setCategory]     = useState('')
+  const [activeBlock, setActive]    = useState(null)
+  const [showAddBlock, setShowAdd]  = useState(false)
+  const [saving, setSaving]         = useState(false)
 
-  useTheme(mode === 'theme' ? theme : portfolio?.theme)
+  const activeTheme = mode === 'theme' ? theme : (portfolio?.theme || '{}')
+  useTheme(activeTheme)
 
   useEffect(() => {
     if (portfolio) {
-      setBlocks(portfolio.blocks || [])
+      setBlocks(portfolio.blocks?.map(b => ({ ...b, style: b.style || '{}' })) || [])
       setTheme(portfolio.theme || '{}')
       setTitle(portfolio.title || '')
       setCategory(portfolio.category || '')
     }
   }, [portfolio])
 
-  // Если владелец и портфолио пустое — сразу в режим редактирования
   useEffect(() => {
-    if (isOwner && isEmpty) setMode('blocks')
+    if (isOwner && isEmpty) setMode('template')
   }, [isOwner, isEmpty])
 
   const sensors = useSensors(
@@ -119,17 +182,20 @@ export default function UserPortfolio() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
 
-  function handleDragEnd(event) {
-    const { active, over } = event
+  function handleDragEnd({ active, over }) {
     if (active.id !== over?.id) {
-      const oldIdx = blocks.findIndex(b => b.id === active.id)
-      const newIdx = blocks.findIndex(b => b.id === over.id)
-      setBlocks(arrayMove(blocks, oldIdx, newIdx))
+      const o = blocks.findIndex(b => b.id === active.id)
+      const n = blocks.findIndex(b => b.id === over.id)
+      setBlocks(arrayMove(blocks, o, n))
     }
   }
 
   function updateBlock(id, content) {
     setBlocks(bs => bs.map(b => b.id === id ? { ...b, content } : b))
+  }
+
+  function updateBlockStyle(id, style) {
+    setBlocks(bs => bs.map(b => b.id === id ? { ...b, style } : b))
   }
 
   function removeBlock(id) {
@@ -138,10 +204,18 @@ export default function UserPortfolio() {
   }
 
   function addBlock(type, label) {
-    const block = { id: Date.now(), type, label, content: '' }
+    const block = { id: Date.now(), type, label, content: '', style: '{}' }
     setBlocks(bs => [...bs, block])
     setActive(block.id)
     setShowAdd(false)
+  }
+
+  function applyTemplate(template) {
+    const newBlocks = template.blocks.map((b, i) => ({
+      id: Date.now() + i, type: b.type, label: b.label, content: '', style: '{}'
+    }))
+    setBlocks(newBlocks)
+    setMode('blocks')
   }
 
   async function handleSave() {
@@ -159,7 +233,7 @@ export default function UserPortfolio() {
 
   function handleCancel() {
     if (portfolio) {
-      setBlocks(portfolio.blocks || [])
+      setBlocks(portfolio.blocks?.map(b => ({ ...b, style: b.style || '{}' })) || [])
       setTheme(portfolio.theme || '{}')
       setTitle(portfolio.title || '')
       setCategory(portfolio.category || '')
@@ -174,19 +248,65 @@ export default function UserPortfolio() {
     <div className="text-center py-20 text-gray-400 text-sm">Загрузка...</div>
   )
 
-  // Чужая страница без портфолио
   if (isEmpty && !isOwner) return (
     <div className="text-center py-20 text-gray-400 text-sm">Портфолио не найдено</div>
   )
 
-  const previewBlocks = mode === 'blocks' ? blocks : (portfolio?.blocks || [])
+  // ── Выбор шаблона ──
+  if (mode === 'template') return (
+    <div className="max-w-2xl mx-auto flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">С чего начнём?</h1>
+        <p className="text-gray-500 text-sm mt-1">Выбери шаблон под свою специализацию</p>
+      </div>
+      <div className="flex flex-col gap-3">
+        {TEMPLATES.map(t => (
+          <button key={t.id} onClick={() => applyTemplate(t)}
+            className="bg-white rounded-2xl p-5 text-left shadow-sm hover:shadow-md transition-all flex flex-col gap-2 border border-transparent hover:border-gray-200">
+            <span className="font-semibold text-gray-900">{t.label}</span>
+            <span className="text-xs text-gray-400 italic">💡 {t.tip}</span>
+            <div className="flex gap-2 flex-wrap mt-1">
+              {t.blocks.map((b, i) => (
+                <span key={i} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+                  {b.label}
+                </span>
+              ))}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
+  const previewBlocks = mode ? blocks : (portfolio?.blocks || [])
+
+  // Читаем токены темы для заголовка
+  let themeData = {}
+  try { themeData = JSON.parse(activeTheme) } catch {}
+  const titleSizeMap = { lg: '1.125rem', xl: '1.5rem', '2xl': '1.875rem', '3xl': '2.25rem' }
+  const paddingMap   = { compact: '16px', normal: '24px', spacious: '40px' }
+
+  const headerStyle = {
+    backgroundColor: themeData.header_bg      || 'white',
+    borderRadius:    `${themeData.card_radius  || 16}px`,
+    boxShadow:       themeData.card_shadow !== false ? '0 2px 12px rgba(0,0,0,0.08)' : 'none',
+    padding:         paddingMap[themeData.header_padding] || '24px',
+    textAlign:       themeData.title_align     || 'left',
+  }
+
+  const titleStyle = {
+    color:      themeData.accent_color || '#111111',
+    fontSize:   titleSizeMap[themeData.title_size] || '1.5rem',
+    fontWeight: 'bold',
+  }
 
   return (
-    <div className={`flex gap-6 ${mode ? 'items-start' : ''}`}>
+    <div className="flex gap-6" style={{ alignItems: mode ? 'flex-start' : undefined }}>
 
-      {/* Левая панель */}
+      {/* ── Левая панель ── */}
       {mode && (
-        <div className="w-72 flex-shrink-0 flex flex-col gap-3 sticky top-6">
+        <div className="w-72 flex-shrink-0 flex flex-col gap-3 sticky top-6 max-h-screen overflow-y-auto pb-6">
+
           <div className="bg-white rounded-2xl p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-gray-900 text-sm">
@@ -231,7 +351,8 @@ export default function UserPortfolio() {
                       isActive={activeBlock === block.id}
                       onSelect={() => setActive(id => id === block.id ? null : block.id)}
                       onRemove={() => removeBlock(block.id)}
-                      onUpdate={updateBlock} />
+                      onUpdate={updateBlock}
+                      onUpdateStyle={updateBlockStyle} />
                   ))}
                 </SortableContext>
               </DndContext>
@@ -265,50 +386,61 @@ export default function UserPortfolio() {
         </div>
       )}
 
-      {/* Превью / страница */}
-      <div id="portfolio-theme"
-        className={`flex flex-col gap-4 flex-1 ${!mode ? 'max-w-2xl mx-auto w-full' : ''}`}
-        style={{ fontFamily: 'var(--font, system-ui)' }}
-      >
-        {/* Шапка */}
-        <div className="rounded-2xl p-6 flex items-start justify-between gap-4 bg-white shadow-sm">
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-gray-400">@{username}</p>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {mode === 'blocks' ? (title || 'Без названия') : (portfolio?.title || 'Без названия')}
-            </h1>
-            {(mode === 'blocks' ? category : portfolio?.category) && (
-              <span className="text-xs bg-gray-100 text-gray-500 px-3 py-1 rounded-full self-start">
-                {CATEGORY_LABELS[mode === 'blocks' ? category : portfolio?.category]}
-              </span>
+      {/* ── Превью ── */}
+      <div className="flex-1 min-w-0">
+        <div
+          className="max-w-2xl mx-auto flex flex-col"
+          style={{ gap: 'var(--pt-spacing, 16px)', fontFamily: 'var(--pt-font, system-ui)' }}
+        >
+          {/* Заголовок */}
+          <div style={headerStyle} className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-2">
+              {(themeData.show_username !== false) && (
+                <p className="text-xs opacity-40">@{username}</p>
+              )}
+              <h1 style={titleStyle}>
+                {mode ? (title || 'Без названия') : (portfolio?.title || 'Без названия')}
+              </h1>
+              {(mode ? category : portfolio?.category) && (
+                <span className="text-xs px-3 py-1 rounded-full self-start"
+                  style={{
+                    backgroundColor: themeData.accent_color || '#111',
+                    color: themeData.header_bg || '#fff',
+                    opacity: 0.85,
+                  }}>
+                  {CATEGORY_LABELS[mode ? category : portfolio?.category]}
+                </span>
+              )}
+            </div>
+
+            {isOwner && !mode && (
+              <div className="flex gap-2 flex-shrink-0">
+                <button onClick={() => setMode('theme')}
+                  className="border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+                  🎨 Оформление
+                </button>
+                <button onClick={() => setMode('blocks')}
+                  className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition-colors">
+                  Изменить
+                </button>
+              </div>
             )}
           </div>
 
-          {isOwner && !mode && (
-            <div className="flex gap-2 flex-shrink-0">
-              <button onClick={() => setMode('theme')}
-                className="border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                🎨 Оформление
-              </button>
-              <button onClick={() => setMode('blocks')}
-                className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition-colors">
-                Изменить
-              </button>
+          {previewBlocks.length === 0 && mode === 'blocks' && (
+            <div className="p-12 text-center rounded-2xl bg-white">
+              <p className="text-4xl mb-3">✨</p>
+              <p className="text-gray-400 text-sm">Добавь первый блок слева</p>
             </div>
           )}
+
+          <BlockRenderer
+            blocks={previewBlocks}
+            editMode={mode === 'blocks'}
+            onEditStyle={id => setActive(id)}
+          />
         </div>
-
-        {/* Пустое состояние для нового пользователя */}
-        {isEmpty && isOwner && mode === 'blocks' && blocks.length === 0 && (
-          <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
-            <p className="text-4xl mb-3">✨</p>
-            <p className="text-gray-500 text-sm">Добавь первый блок слева чтобы начать</p>
-          </div>
-        )}
-
-        <BlockRenderer blocks={previewBlocks} />
       </div>
-
     </div>
   )
 }
