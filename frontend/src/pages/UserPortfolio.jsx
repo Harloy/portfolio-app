@@ -88,9 +88,11 @@ const BLOCK_TYPES = [
   { type: 'audio',    label: '🎵 Аудио',          desc: 'SoundCloud' },
   { type: 'case',     label: '📁 Кейс',           desc: 'Проект с картинками' },
   { type: 'location', label: '📍 Местоположение', desc: 'Адрес и карта' },
+  { type: 'programs', label: '🛠 Программы',       desc: 'Figma, Blender, Photoshop...' },
+  { type: 'steps',    label: '🪜 Этапы',            desc: 'Поэтапный показ работ' },
 ]
 
-const BLOCK_ICONS = { text:'📝', image:'🖼', video:'▶️', audio:'🎵', case:'📁', location:'📍' }
+const BLOCK_ICONS = { text:'📝', image:'🖼', video:'▶️', audio:'🎵', case:'📁', location:'📍', programs:'🛠', steps:'🪜' }
 
 function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, onToggleFeatured, isActive, onSelect }) {
   const [showStyle, setShowStyle] = useState(false)
@@ -239,9 +241,14 @@ export default function UserPortfolio() {
   }
 
   async function handleSave() {
+    // Программы из blocks автоматически в теги
+    const programTags = blocks
+      .filter(b => b.type === 'programs')
+      .flatMap(b => { try { return JSON.parse(b.content || '[]').map(p => p.name.toLowerCase()) } catch { return [] } })
+    const mergedTags = [...new Set([...tags, ...programTags])]
     setSaving(true)
     try {
-      await savePortfolio({ title, category, description, theme, blocks, tags, avatar_url: avatarUrl, status })
+      await savePortfolio({ title, category, description, theme, blocks, tags: mergedTags, avatar_url: avatarUrl, status })
       await queryClient.invalidateQueries(['portfolio-user', username])
       setMode(null)
     } catch (e) {

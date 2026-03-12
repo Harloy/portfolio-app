@@ -4,10 +4,12 @@ import VideoBlock    from './VideoBlock'
 import AudioBlock    from './AudioBlock'
 import CaseBlock     from './CaseBlock'
 import LocationBlock from './LocationBlock'
+import StepsBlock from './StepsBlock'
+import ProgramsBlock from './ProgramsBlock'
 
 const COMPONENTS = {
   text: TextBlock, image: ImageBlock, video: VideoBlock,
-  audio: AudioBlock, case: CaseBlock, location: LocationBlock,
+  audio: AudioBlock, case: CaseBlock, location: LocationBlock, programs: ProgramsBlock, steps: StepsBlock,
 }
 
 function parseBlockStyle(styleJson) {

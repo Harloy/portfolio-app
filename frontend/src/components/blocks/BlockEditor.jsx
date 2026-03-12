@@ -1,4 +1,6 @@
 import LocationEditor from './LocationEditor'
+import { ProgramsEditor } from './ProgramsBlock'
+import { StepsEditor } from './StepsBlock'
 
 function TextEditor({ content, onChange }) {
   return (
@@ -26,11 +28,9 @@ function LinkEditor({ content, onChange, placeholder }) {
 function CaseEditor({ content, onChange }) {
   let parsed = { title: '', description: '', images: [] }
   try { parsed = { ...parsed, ...JSON.parse(content || '{}') } } catch {}
-
   function update(field, value) {
     onChange(JSON.stringify({ ...parsed, [field]: value }))
   }
-
   return (
     <div className="flex flex-col gap-2">
       <input
@@ -88,6 +88,8 @@ export default function BlockEditor({ block, onChange }) {
     case 'audio':    return <LinkEditor content={block.content} onChange={onChange} placeholder={PLACEHOLDERS[block.type]} />
     case 'case':     return <CaseEditor content={block.content} onChange={onChange} />
     case 'location': return <LocationEditor content={block.content} onChange={onChange} />
+    case 'programs': return <ProgramsEditor content={block.content} onChange={onChange} />
+    case 'steps':    return <StepsEditor content={block.content} onChange={onChange} />
     default:         return null
   }
 }

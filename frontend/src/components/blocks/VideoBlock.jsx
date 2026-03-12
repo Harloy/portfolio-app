@@ -9,7 +9,6 @@ export default function VideoBlock({ content, label, style }) {
 
   return (
     <div className="overflow-hidden" style={style}>
-      {label && <p className="text-xs opacity-50 uppercase tracking-wide p-4 pb-2">{label}</p>}
       <div className="relative" style={{ paddingBottom: '56.25%' }}>
         <iframe src={src} className="absolute inset-0 w-full h-full border-0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

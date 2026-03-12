@@ -33,10 +33,7 @@ export default function SpecialistCard({ portfolio, onClick }) {
               onError={e => { e.target.style.display = 'none' }} />
           ) : (
             <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0 text-lg">
-              {portfolio.category === 'photo'   ? '📷' :
-               portfolio.category === 'music'   ? '🎵' :
-               portfolio.category === 'design'  ? '💻' :
-               portfolio.category === 'illustr' ? '🎨' : '✦'}
+              {'✦'}
             </div>
           )}
           <div className="min-w-0 flex-1">
@@ -61,11 +58,6 @@ export default function SpecialistCard({ portfolio, onClick }) {
 
         {/* Теги */}
         <div className="flex flex-wrap gap-1">
-          {portfolio.category && (
-            <span className="text-xs bg-black text-white px-2 py-0.5 rounded-full">
-              {professionLabel(portfolio.category)}
-            </span>
-          )}
           {portfolio.status && (
             <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full italic">
               {portfolio.status}

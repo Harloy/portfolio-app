@@ -1,12 +1,8 @@
-const METRO_OPTIONS = [
-  'Нет метро',
-  'Рядом с метро',
-]
-
 export default function LocationEditor({ content, onChange }) {
   let data = {
-    country: '', city: '', metro: '', has_metro: false,
-    street: '', lat: '', lng: '', photos: [], notes: ''
+    country: '', city: '', metro: '',
+    street: '', lat: '', lng: '',
+    photos: [], notes: '', hidden: false
   }
   try { data = { ...data, ...JSON.parse(content || '{}') } } catch {}
 
@@ -34,24 +30,12 @@ export default function LocationEditor({ content, onChange }) {
       </div>
 
       {/* Метро */}
-      <div className="flex gap-2 items-center">
-        <input
-          value={data.metro}
-          onChange={e => update('metro', e.target.value)}
-          placeholder="Станция метро"
-          disabled={!data.has_metro}
-          className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors disabled:opacity-40"
-        />
-        <label className="flex items-center gap-1.5 text-xs text-gray-500 flex-shrink-0 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={data.has_metro}
-            onChange={e => update('has_metro', e.target.checked)}
-            className="rounded"
-          />
-          Есть метро
-        </label>
-      </div>
+      <input
+        value={data.metro}
+        onChange={e => update('metro', e.target.value)}
+        placeholder="Станция метро"
+        className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors"
+      />
 
       {/* Улица */}
       <input
@@ -61,30 +45,11 @@ export default function LocationEditor({ content, onChange }) {
         className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors"
       />
 
-      {/* Геометка */}
-      <div className="grid grid-cols-2 gap-2">
-        <input
-          value={data.lat}
-          onChange={e => update('lat', e.target.value)}
-          placeholder="Широта (55.7558)"
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors"
-        />
-        <input
-          value={data.lng}
-          onChange={e => update('lng', e.target.value)}
-          placeholder="Долгота (37.6176)"
-          className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors"
-        />
-      </div>
-      <p className="text-xs text-gray-400">
-        💡 Координаты можно найти на maps.google.com — правый клик → «Что здесь?»
-      </p>
-
-      {/* Доп. информация */}
+      {/* Заметки */}
       <textarea
         value={data.notes}
         onChange={e => update('notes', e.target.value)}
-        placeholder="Дополнительная информация (время работы, как добраться...)"
+        placeholder="Как добраться, время работы..."
         rows={2}
         className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors resize-none"
       />
@@ -113,10 +78,24 @@ export default function LocationEditor({ content, onChange }) {
         <button
           onClick={() => update('photos', [...(data.photos || []), ''])}
           className="text-xs text-gray-400 hover:text-gray-600 text-left py-1"
-        >
-          + добавить фото
-        </button>
+        >+ добавить фото</button>
       </div>
+
+      {/* Скрытый режим */}
+      <label className="flex items-center gap-2 cursor-pointer select-none">
+        <div
+          onClick={() => update('hidden', !data.hidden)}
+          className={`w-9 h-5 rounded-full transition-colors flex items-center px-0.5 ${
+            data.hidden ? 'bg-black' : 'bg-gray-200'
+          }`}>
+          <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+            data.hidden ? 'translate-x-4' : 'translate-x-0'
+          }`} />
+        </div>
+        <span className="text-xs text-gray-500">
+          Скрытый вид — показывать карту только по кнопке
+        </span>
+      </label>
 
     </div>
   )
