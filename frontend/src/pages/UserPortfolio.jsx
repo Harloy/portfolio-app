@@ -90,9 +90,12 @@ const BLOCK_TYPES = [
   { type: 'location', label: '📍 Местоположение', desc: 'Адрес и карта' },
   { type: 'programs', label: '🛠 Программы',       desc: 'Figma, Blender, Photoshop...' },
   { type: 'steps',    label: '🪜 Этапы',            desc: 'Поэтапный показ работ' },
+  { type: 'contacts', label: '📬 Контакты',          desc: 'Соцсети, ссылки, описание' },
+  { type: 'comments', label: '💬 Комментарии',       desc: 'Форма обратной связи' },
+  { type: 'mail',     label: '✉️ Написать письмо',   desc: 'Форма отправки на email' },
 ]
 
-const BLOCK_ICONS = { text:'📝', image:'🖼', video:'▶️', audio:'🎵', case:'📁', location:'📍', programs:'🛠', steps:'🪜' }
+const BLOCK_ICONS = { text:'📝', image:'🖼', video:'▶️', audio:'🎵', case:'📁', location:'📍', programs:'🛠', steps:'🪜', contacts:'📬', comments:'💬', mail:'✉️' }
 
 function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, onToggleFeatured, isActive, onSelect }) {
   const [showStyle, setShowStyle] = useState(false)
@@ -129,7 +132,7 @@ function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, onToggleFeatured, 
 
       {isActive && (
         <div className="px-3 pb-3 border-t border-gray-100 pt-2">
-          <BlockEditor block={block} onChange={content => onUpdate(block.id, content)} />
+          <BlockEditor block={block} onChange={content => onUpdate(block.id, content)} portfolioId={portfolio?.id} />
         </div>
       )}
 
@@ -241,6 +244,8 @@ export default function UserPortfolio() {
   }
 
   async function handleSave() {
+    // Вписываем portfolio_id в блоки комментариев
+    const portfolioId = portfolio?.id || 0
     // Программы из blocks автоматически в теги
     const programTags = blocks
       .filter(b => b.type === 'programs')
@@ -248,7 +253,15 @@ export default function UserPortfolio() {
     const mergedTags = [...new Set([...tags, ...programTags])]
     setSaving(true)
     try {
-      await savePortfolio({ title, category, description, theme, blocks, tags: mergedTags, avatar_url: avatarUrl, status })
+      // Обновляем portfolio_id в блоках комментариев перед сохранением
+      const enrichedBlocks = blocks.map(b => {
+        if (b.type !== 'comments') return b
+        try {
+          const d = JSON.parse(b.content || '{}')
+          return { ...b, content: JSON.stringify({ ...d, portfolio_id: portfolioId }) }
+        } catch { return b }
+      })
+      await savePortfolio({ title, category, description, theme, blocks: enrichedBlocks, tags: mergedTags, avatar_url: avatarUrl, status })
       await queryClient.invalidateQueries(['portfolio-user', username])
       setMode(null)
     } catch (e) {
@@ -527,6 +540,8 @@ export default function UserPortfolio() {
             blocks={previewBlocks}
             editMode={mode === 'blocks'}
             onEditStyle={id => setActive(id)}
+            portfolioId={portfolio?.id}
+            isOwner={isOwner}
           />
         </div>
       </div>

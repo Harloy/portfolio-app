@@ -8,7 +8,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-
 	"github.com/yourname/portfolio-app/internal/db"
 	"github.com/yourname/portfolio-app/internal/handler"
 	"github.com/yourname/portfolio-app/internal/middleware"
@@ -30,19 +29,21 @@ func main() {
 	portfolioRepo := repository.NewPortfolioRepo(database)
 	blockRepo     := repository.NewBlockRepo(database)
 	tagRepo       := repository.NewTagRepo(database)
+	commentRepo   := repository.NewCommentRepo(database)
 
 	authSvc      := service.NewAuthService(userRepo)
 	portfolioSvc := service.NewPortfolioService(portfolioRepo, blockRepo, tagRepo)
 
 	authHandler      := handler.NewAuthHandler(authSvc)
 	portfolioHandler := handler.NewPortfolioHandler(portfolioSvc)
+	commentHandler   := handler.NewCommentHandler(commentRepo)
 
 	r := chi.NewRouter()
 	r.Use(chimiddleware.Logger)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:5173"},
-		AllowedMethods:   []string{"GET","POST","PUT","DELETE","OPTIONS"},
-		AllowedHeaders:   []string{"Accept","Authorization","Content-Type"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
 
@@ -60,11 +61,20 @@ func main() {
 		r.Post("/portfolio/visit", portfolioHandler.RecordVisit)
 		r.Get("/tags",             portfolioHandler.TagsByProfession)
 
+		// Комментарии — публичные
+		r.Get("/comments",  commentHandler.GetComments)
+		r.Post("/comments", commentHandler.AddComment)
+		// Удаление — только авторизованным
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Auth)
+			r.Delete("/comments", commentHandler.DeleteComment)
+		})
+
 		// Приватные
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Auth)
-			r.Get("/portfolio/my",  portfolioHandler.GetMy)
-			r.Post("/portfolio",    portfolioHandler.Save)
+			r.Get("/portfolio/my", portfolioHandler.GetMy)
+			r.Post("/portfolio",   portfolioHandler.Save)
 		})
 	})
 
