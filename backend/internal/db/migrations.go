@@ -45,4 +45,12 @@ CREATE TABLE IF NOT EXISTS portfolio_tags (
     tag_id       INTEGER REFERENCES tags(id) ON DELETE CASCADE,
     PRIMARY KEY (portfolio_id, tag_id)
 );
+
+CREATE TABLE IF NOT EXISTS portfolio_visits (
+    id           SERIAL PRIMARY KEY,
+    portfolio_id INTEGER REFERENCES portfolios(id) ON DELETE CASCADE,
+    visited_at   TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_visits_portfolio ON portfolio_visits(portfolio_id);
+CREATE INDEX IF NOT EXISTS idx_visits_time ON portfolio_visits(visited_at);
 `

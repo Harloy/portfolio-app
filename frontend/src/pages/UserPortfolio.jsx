@@ -17,7 +17,7 @@ import BlockStyleEditor from '../components/blocks/BlockStyleEditor'
 import ThemeEditor      from '../components/ThemeEditor'
 import { useTheme }     from '../hooks/useTheme'
 import useAuthStore     from '../store/authStore'
-import { savePortfolio } from '../api/portfolio'
+import { savePortfolio, recordVisit } from '../api/portfolio'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
@@ -159,7 +159,8 @@ export default function UserPortfolio() {
   const [category, setCategory]     = useState('')
   const [activeBlock, setActive]    = useState(null)
   const [showAddBlock, setShowAdd]  = useState(false)
-  const [saving, setSaving]         = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [tags, setTags]     = useState([])
 
   const activeTheme = mode === 'theme' ? theme : (portfolio?.theme || '{}')
   useTheme(activeTheme)
@@ -221,7 +222,7 @@ export default function UserPortfolio() {
   async function handleSave() {
     setSaving(true)
     try {
-      await savePortfolio({ title, category, description: '', theme, blocks })
+      await savePortfolio({ title, category, description: '', theme, blocks, tags })
       await queryClient.invalidateQueries(['portfolio-user', username])
       setMode(null)
     } catch (e) {
@@ -338,6 +339,32 @@ export default function UserPortfolio() {
                   <option value="motion">Аниматор</option>
                   <option value="music">Музыкант</option>
                 </select>
+                {/* Теги */}
+<div className="flex flex-col gap-1.5">
+  <p className="text-xs text-gray-400">Теги (через Enter)</p>
+  <div className="flex flex-wrap gap-1 min-h-8">
+    {tags.map(tag => (
+      <span key={tag}
+        className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+        {tag}
+        <button onClick={() => setTags(ts => ts.filter(t => t !== tag))}
+          className="text-gray-400 hover:text-red-400">✕</button>
+      </span>
+    ))}
+  </div>
+  <input
+    placeholder="Добавить тег..."
+    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors w-full"
+    onKeyDown={e => {
+      if (e.key === 'Enter' && e.target.value.trim()) {
+        const tag = e.target.value.trim().toLowerCase()
+        if (!tags.includes(tag)) setTags(ts => [...ts, tag])
+        e.target.value = ''
+      }
+    }}
+  />
+</div>
+                
               </div>
             )}
           </div>
