@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import useAuthStore from '../store/authStore'
 import { getMyPortfolio } from '../api/portfolio'
 
-const BLOCK_ICONS = { text: '📝', image: '🖼', video: '▶️', audio: '🎵', case: '📁' }
+const BLOCK_ICONS = { text: '📝', image: '🖼', video: '▶️', audio: '🎵', case: '📁', location: '📍' }
 
 export default function My() {
   const navigate = useNavigate()
@@ -14,24 +14,27 @@ export default function My() {
     queryFn: getMyPortfolio,
   })
 
+  function goToPortfolio() {
+    if (user?.username) navigate(`/${user.username}`)
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="bg-white rounded-2xl p-6 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl">
-            👤
-          </div>
+          <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl">👤</div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">{user?.name || 'Пользователь'}</h1>
             <p className="text-sm text-gray-400">{user?.email}</p>
+            {user?.username && <p className="text-sm text-gray-400">@{user.username}</p>}
           </div>
         </div>
-        <button
-          onClick={() => navigate('/editor')}
-          className="bg-black text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors"
-        >
-          Изменить
-        </button>
+        {user?.username && (
+          <button onClick={goToPortfolio}
+            className="bg-black text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors">
+            Моё портфолио →
+          </button>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm flex flex-col gap-4">
@@ -65,10 +68,8 @@ export default function My() {
           <div className="flex flex-col items-center gap-3 py-12 text-center">
             <p className="text-4xl">📂</p>
             <p className="text-gray-500 text-sm">Портфолио пока пустое</p>
-            <button
-              onClick={() => navigate('/editor?setup=true')}
-              className="mt-2 border border-gray-200 text-gray-700 px-5 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={goToPortfolio}
+              className="mt-2 border border-gray-200 text-gray-700 px-5 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors">
               + Создать портфолио
             </button>
           </div>

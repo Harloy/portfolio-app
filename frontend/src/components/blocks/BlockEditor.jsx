@@ -1,4 +1,4 @@
-// Форма редактирования внутри блока — зависит от типа
+import LocationEditor from './LocationEditor'
 
 function TextEditor({ content, onChange }) {
   return (
@@ -25,26 +25,10 @@ function LinkEditor({ content, onChange, placeholder }) {
 
 function CaseEditor({ content, onChange }) {
   let parsed = { title: '', description: '', images: [] }
-  try { parsed = JSON.parse(content || '{}') } catch {}
+  try { parsed = { ...parsed, ...JSON.parse(content || '{}') } } catch {}
 
   function update(field, value) {
     onChange(JSON.stringify({ ...parsed, [field]: value }))
-  }
-
-  function updateImage(i, value) {
-    const images = [...(parsed.images || [])]
-    images[i] = value
-    onChange(JSON.stringify({ ...parsed, images }))
-  }
-
-  function addImage() {
-    const images = [...(parsed.images || []), '']
-    onChange(JSON.stringify({ ...parsed, images }))
-  }
-
-  function removeImage(i) {
-    const images = parsed.images.filter((_, idx) => idx !== i)
-    onChange(JSON.stringify({ ...parsed, images }))
   }
 
   return (
@@ -67,22 +51,24 @@ function CaseEditor({ content, onChange }) {
           <div key={i} className="flex gap-2">
             <input
               value={img}
-              onChange={e => updateImage(i, e.target.value)}
+              onChange={e => {
+                const images = [...parsed.images]
+                images[i] = e.target.value
+                update('images', images)
+              }}
               placeholder="https://imgur.com/..."
               className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors"
             />
             <button
-              onClick={() => removeImage(i)}
-              className="text-gray-300 hover:text-red-400 transition-colors px-2"
+              onClick={() => update('images', parsed.images.filter((_, idx) => idx !== i))}
+              className="text-gray-300 hover:text-red-400 px-2"
             >✕</button>
           </div>
         ))}
         <button
-          onClick={addImage}
+          onClick={() => update('images', [...(parsed.images || []), ''])}
           className="text-xs text-gray-400 hover:text-gray-600 text-left py-1"
-        >
-          + добавить картинку
-        </button>
+        >+ добавить картинку</button>
       </div>
     </div>
   )
@@ -96,15 +82,12 @@ const PLACEHOLDERS = {
 
 export default function BlockEditor({ block, onChange }) {
   switch (block.type) {
-    case 'text':
-      return <TextEditor content={block.content} onChange={onChange} />
+    case 'text':     return <TextEditor content={block.content} onChange={onChange} />
     case 'image':
     case 'video':
-    case 'audio':
-      return <LinkEditor content={block.content} onChange={onChange} placeholder={PLACEHOLDERS[block.type]} />
-    case 'case':
-      return <CaseEditor content={block.content} onChange={onChange} />
-    default:
-      return null
+    case 'audio':    return <LinkEditor content={block.content} onChange={onChange} placeholder={PLACEHOLDERS[block.type]} />
+    case 'case':     return <CaseEditor content={block.content} onChange={onChange} />
+    case 'location': return <LocationEditor content={block.content} onChange={onChange} />
+    default:         return null
   }
 }

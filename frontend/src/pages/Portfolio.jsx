@@ -60,7 +60,7 @@ export default function Portfolio() {
 
         {isOwner && (
           <button
-            onClick={() => navigate('/editor')}
+            onClick={() => user?.username ? navigate(`/${user.username}`) : navigate("/my")}
             className="flex-shrink-0 border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors"
           >
             Изменить

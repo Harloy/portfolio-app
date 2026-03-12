@@ -20,6 +20,7 @@ type Portfolio struct {
     Description string    `json:"description"`
     Category    string    `json:"category"`
     Score       int       `json:"score"`
+    Theme       string    `json:"theme"`
     Blocks      []Block   `json:"blocks,omitempty"`
     Tags        []string  `json:"tags,omitempty"`
     CreatedAt   time.Time `json:"created_at"`

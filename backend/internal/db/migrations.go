@@ -21,8 +21,11 @@ CREATE TABLE IF NOT EXISTS portfolios (
     description TEXT,
     category    TEXT,
     score       INTEGER DEFAULT 0,
+    theme       TEXT DEFAULT '{}',
     created_at  TIMESTAMP DEFAULT NOW()
 );
+
+ALTER TABLE portfolios ADD COLUMN IF NOT EXISTS theme TEXT DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS blocks (
     id           SERIAL PRIMARY KEY,
