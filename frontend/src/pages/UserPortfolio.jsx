@@ -31,6 +31,7 @@ async function fetchByUsername(username) {
 const CATEGORY_LABELS = {
   illustr: 'Художник', design: 'Дизайнер',
   photo: 'Фотограф', motion: 'Аниматор', music: 'Музыкант',
+  video: 'Видеограф', arch: 'Архитектор', fashion: 'Стилист',
 }
 
 const TEMPLATES = [
@@ -91,7 +92,7 @@ const BLOCK_TYPES = [
 
 const BLOCK_ICONS = { text:'📝', image:'🖼', video:'▶️', audio:'🎵', case:'📁', location:'📍' }
 
-function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, isActive, onSelect }) {
+function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, onToggleFeatured, isActive, onSelect }) {
   const [showStyle, setShowStyle] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: block.id })
@@ -114,6 +115,9 @@ function TOCBlock({ block, onRemove, onUpdate, onUpdateStyle, isActive, onSelect
           className="flex-1 text-left text-sm text-gray-700 hover:text-gray-900 truncate">
           {block.label}
         </button>
+        <button onClick={onToggleFeatured}
+          className={`text-xs px-1 transition-colors ${block.is_featured ? 'text-yellow-400' : 'text-gray-300 hover:text-gray-500'}`}
+          title="Показывать в превью">⭐</button>
         <button onClick={() => setShowStyle(s => !s)}
           className={`text-xs px-1 transition-colors ${showStyle ? 'text-gray-700' : 'text-gray-300 hover:text-gray-500'}`}
           title="Стиль блока">🎨</button>
@@ -152,25 +156,36 @@ export default function UserPortfolio() {
   const isOwner = user?.username === username
   const isEmpty = !isLoading && portfolio === null
 
-  const [mode, setMode]             = useState(null)
-  const [blocks, setBlocks]         = useState([])
-  const [theme, setTheme]           = useState('{}')
-  const [title, setTitle]           = useState('')
-  const [category, setCategory]     = useState('')
-  const [activeBlock, setActive]    = useState(null)
-  const [showAddBlock, setShowAdd]  = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [tags, setTags]     = useState([])
+  const [mode, setMode]               = useState(null)
+  const [blocks, setBlocks]           = useState([])
+  const [theme, setTheme]             = useState('{}')
+  const [title, setTitle]             = useState('')
+  const [category, setCategory]       = useState('')
+  const [avatarUrl, setAvatarUrl]     = useState('')
+  const [description, setDescription] = useState('')
+  const [status, setStatus]           = useState('')
+  const [tags, setTags]               = useState([])
+  const [activeBlock, setActive]      = useState(null)
+  const [showAddBlock, setShowAdd]    = useState(false)
+  const [saving, setSaving]           = useState(false)
 
   const activeTheme = mode === 'theme' ? theme : (portfolio?.theme || '{}')
   useTheme(activeTheme)
 
   useEffect(() => {
+    if (portfolio?.id && !isOwner) recordVisit(portfolio.id)
+  }, [portfolio?.id])
+
+  useEffect(() => {
     if (portfolio) {
-      setBlocks(portfolio.blocks?.map(b => ({ ...b, style: b.style || '{}' })) || [])
+      setBlocks(portfolio.blocks?.map(b => ({ ...b, style: b.style || '{}', is_featured: b.is_featured || false })) || [])
       setTheme(portfolio.theme || '{}')
       setTitle(portfolio.title || '')
       setCategory(portfolio.category || '')
+      setAvatarUrl(portfolio.avatar_url || '')
+      setDescription(portfolio.description || '')
+      setStatus(portfolio.status || '')
+      setTags(portfolio.tags || [])
     }
   }, [portfolio])
 
@@ -199,13 +214,17 @@ export default function UserPortfolio() {
     setBlocks(bs => bs.map(b => b.id === id ? { ...b, style } : b))
   }
 
+  function toggleFeatured(id) {
+    setBlocks(bs => bs.map(b => b.id === id ? { ...b, is_featured: !b.is_featured } : b))
+  }
+
   function removeBlock(id) {
     setBlocks(bs => bs.filter(b => b.id !== id))
     if (activeBlock === id) setActive(null)
   }
 
   function addBlock(type, label) {
-    const block = { id: Date.now(), type, label, content: '', style: '{}' }
+    const block = { id: Date.now(), type, label, content: '', style: '{}', is_featured: false }
     setBlocks(bs => [...bs, block])
     setActive(block.id)
     setShowAdd(false)
@@ -213,7 +232,7 @@ export default function UserPortfolio() {
 
   function applyTemplate(template) {
     const newBlocks = template.blocks.map((b, i) => ({
-      id: Date.now() + i, type: b.type, label: b.label, content: '', style: '{}'
+      id: Date.now() + i, type: b.type, label: b.label, content: '', style: '{}', is_featured: false
     }))
     setBlocks(newBlocks)
     setMode('blocks')
@@ -222,7 +241,7 @@ export default function UserPortfolio() {
   async function handleSave() {
     setSaving(true)
     try {
-      await savePortfolio({ title, category, description: '', theme, blocks, tags })
+      await savePortfolio({ title, category, description, theme, blocks, tags, avatar_url: avatarUrl, status })
       await queryClient.invalidateQueries(['portfolio-user', username])
       setMode(null)
     } catch (e) {
@@ -234,10 +253,14 @@ export default function UserPortfolio() {
 
   function handleCancel() {
     if (portfolio) {
-      setBlocks(portfolio.blocks?.map(b => ({ ...b, style: b.style || '{}' })) || [])
+      setBlocks(portfolio.blocks?.map(b => ({ ...b, style: b.style || '{}', is_featured: b.is_featured || false })) || [])
       setTheme(portfolio.theme || '{}')
       setTitle(portfolio.title || '')
       setCategory(portfolio.category || '')
+      setAvatarUrl(portfolio.avatar_url || '')
+      setDescription(portfolio.description || '')
+      setStatus(portfolio.status || '')
+      setTags(portfolio.tags || [])
     } else {
       setBlocks([])
     }
@@ -253,7 +276,6 @@ export default function UserPortfolio() {
     <div className="text-center py-20 text-gray-400 text-sm">Портфолио не найдено</div>
   )
 
-  // ── Выбор шаблона ──
   if (mode === 'template') return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
@@ -281,18 +303,17 @@ export default function UserPortfolio() {
 
   const previewBlocks = mode ? blocks : (portfolio?.blocks || [])
 
-  // Читаем токены темы для заголовка
   let themeData = {}
   try { themeData = JSON.parse(activeTheme) } catch {}
   const titleSizeMap = { lg: '1.125rem', xl: '1.5rem', '2xl': '1.875rem', '3xl': '2.25rem' }
   const paddingMap   = { compact: '16px', normal: '24px', spacious: '40px' }
 
   const headerStyle = {
-    backgroundColor: themeData.header_bg      || 'white',
-    borderRadius:    `${themeData.card_radius  || 16}px`,
+    backgroundColor: themeData.header_bg     || 'white',
+    borderRadius:    `${themeData.card_radius || 16}px`,
     boxShadow:       themeData.card_shadow !== false ? '0 2px 12px rgba(0,0,0,0.08)' : 'none',
     padding:         paddingMap[themeData.header_padding] || '24px',
-    textAlign:       themeData.title_align     || 'left',
+    textAlign:       themeData.title_align   || 'left',
   }
 
   const titleStyle = {
@@ -300,6 +321,10 @@ export default function UserPortfolio() {
     fontSize:   titleSizeMap[themeData.title_size] || '1.5rem',
     fontWeight: 'bold',
   }
+
+  const currentAvatarUrl  = mode ? avatarUrl    : (portfolio?.avatar_url  || '')
+  const currentDescription = mode ? description : (portfolio?.description || '')
+  const currentStatus      = mode ? status      : (portfolio?.status      || '')
 
   return (
     <div className="flex gap-6" style={{ alignItems: mode ? 'flex-start' : undefined }}>
@@ -338,39 +363,54 @@ export default function UserPortfolio() {
                   <option value="photo">Фотограф</option>
                   <option value="motion">Аниматор</option>
                   <option value="music">Музыкант</option>
+                  <option value="video">Видеограф</option>
+                  <option value="arch">Архитектор</option>
+                  <option value="fashion">Стилист</option>
                 </select>
-                {/* Теги */}
-<div className="flex flex-col gap-1.5">
-  <p className="text-xs text-gray-400">Теги (через Enter)</p>
-  <div className="flex flex-wrap gap-1 min-h-8">
-    {tags.map(tag => (
-      <span key={tag}
-        className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-        {tag}
-        <button onClick={() => setTags(ts => ts.filter(t => t !== tag))}
-          className="text-gray-400 hover:text-red-400">✕</button>
-      </span>
-    ))}
-  </div>
-  <input
-    placeholder="Добавить тег..."
-    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors w-full"
-    onKeyDown={e => {
-      if (e.key === 'Enter' && e.target.value.trim()) {
-        const tag = e.target.value.trim().toLowerCase()
-        if (!tags.includes(tag)) setTags(ts => [...ts, tag])
-        e.target.value = ''
-      }
-    }}
-  />
-</div>
-                
+                <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)}
+                  placeholder="Аватарка — ссылка на Imgur"
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors w-full" />
+                <textarea value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder="Короткое описание"
+                  rows={2}
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors w-full resize-none" />
+                <input value={status} onChange={e => setStatus(e.target.value)}
+                  placeholder="Статус: открыт к заказам, в отпуске..."
+                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors w-full" />
+
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <p className="text-xs text-gray-400">Теги (через Enter)</p>
+                  <div className="flex flex-wrap gap-1 min-h-6">
+                    {tags.map(tag => (
+                      <span key={tag}
+                        className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
+                        {tag}
+                        <button onClick={() => setTags(ts => ts.filter(t => t !== tag))}
+                          className="text-gray-400 hover:text-red-400 leading-none">✕</button>
+                      </span>
+                    ))}
+                  </div>
+                  <input
+                    placeholder="Добавить тег..."
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-black transition-colors w-full"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        const tag = e.target.value.trim().toLowerCase()
+                        if (!tags.includes(tag)) setTags(ts => [...ts, tag])
+                        e.target.value = ''
+                      }
+                    }}
+                  />
+                </div>
               </div>
             )}
           </div>
 
           {mode === 'blocks' && (
             <div className="flex flex-col gap-2">
+              <p className="text-xs text-gray-400 px-1">
+                ⭐ = показывать в превью на главной
+              </p>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                   {blocks.map(block => (
@@ -379,7 +419,8 @@ export default function UserPortfolio() {
                       onSelect={() => setActive(id => id === block.id ? null : block.id)}
                       onRemove={() => removeBlock(block.id)}
                       onUpdate={updateBlock}
-                      onUpdateStyle={updateBlockStyle} />
+                      onUpdateStyle={updateBlockStyle}
+                      onToggleFeatured={() => toggleFeatured(block.id)} />
                   ))}
                 </SortableContext>
               </DndContext>
@@ -415,43 +456,57 @@ export default function UserPortfolio() {
 
       {/* ── Превью ── */}
       <div className="flex-1 min-w-0">
-        <div
-          className="max-w-2xl mx-auto flex flex-col"
-          style={{ gap: 'var(--pt-spacing, 16px)', fontFamily: 'var(--pt-font, system-ui)' }}
-        >
+        <div className="max-w-2xl mx-auto flex flex-col"
+          style={{ gap: 'var(--pt-spacing, 16px)', fontFamily: 'var(--pt-font, system-ui)' }}>
+
           {/* Заголовок */}
-          <div style={headerStyle} className="flex items-start justify-between gap-4">
-            <div className="flex flex-col gap-2">
-              {(themeData.show_username !== false) && (
-                <p className="text-xs opacity-40">@{username}</p>
-              )}
-              <h1 style={titleStyle}>
-                {mode ? (title || 'Без названия') : (portfolio?.title || 'Без названия')}
-              </h1>
-              {(mode ? category : portfolio?.category) && (
-                <span className="text-xs px-3 py-1 rounded-full self-start"
-                  style={{
-                    backgroundColor: themeData.accent_color || '#111',
-                    color: themeData.header_bg || '#fff',
-                    opacity: 0.85,
-                  }}>
-                  {CATEGORY_LABELS[mode ? category : portfolio?.category]}
-                </span>
+          <div style={headerStyle}>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                {currentAvatarUrl ? (
+                  <img src={currentAvatarUrl}
+                    className="w-14 h-14 rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow"
+                    onError={e => { e.target.style.display = 'none' }} />
+                ) : null}
+                <div className="flex flex-col gap-1 min-w-0">
+                  {(themeData.show_username !== false) && (
+                    <p className="text-xs opacity-40">@{username}</p>
+                  )}
+                  <h1 style={titleStyle}>
+                    {mode ? (title || 'Без названия') : (portfolio?.title || 'Без названия')}
+                  </h1>
+                  {currentStatus && (
+                    <p className="text-xs text-emerald-600 italic">{currentStatus}</p>
+                  )}
+                  {currentDescription && (
+                    <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{currentDescription}</p>
+                  )}
+                  {(mode ? category : portfolio?.category) && (
+                    <span className="text-xs px-3 py-1 rounded-full self-start mt-1"
+                      style={{
+                        backgroundColor: themeData.accent_color || '#111',
+                        color: themeData.header_bg || '#fff',
+                        opacity: 0.85,
+                      }}>
+                      {CATEGORY_LABELS[mode ? category : portfolio?.category]}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {isOwner && !mode && (
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => setMode('theme')}
+                    className="border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+                    🎨 Оформление
+                  </button>
+                  <button onClick={() => setMode('blocks')}
+                    className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition-colors">
+                    Изменить
+                  </button>
+                </div>
               )}
             </div>
-
-            {isOwner && !mode && (
-              <div className="flex gap-2 flex-shrink-0">
-                <button onClick={() => setMode('theme')}
-                  className="border border-gray-200 text-gray-600 px-4 py-2 rounded-xl text-sm hover:bg-gray-50 transition-colors">
-                  🎨 Оформление
-                </button>
-                <button onClick={() => setMode('blocks')}
-                  className="bg-black text-white px-4 py-2 rounded-xl text-sm hover:bg-gray-800 transition-colors">
-                  Изменить
-                </button>
-              </div>
-            )}
           </div>
 
           {previewBlocks.length === 0 && mode === 'blocks' && (

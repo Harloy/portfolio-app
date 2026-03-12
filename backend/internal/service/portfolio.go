@@ -15,8 +15,18 @@ func NewPortfolioService(pr *repository.PortfolioRepo, br *repository.BlockRepo,
 	return &PortfolioService{portfolioRepo: pr, blockRepo: br, tagRepo: tr}
 }
 
-func (s *PortfolioService) Save(userID int, title, description, category, theme string, blocks []model.Block, tags []string) (*model.Portfolio, error) {
-	p := &model.Portfolio{UserID: userID, Title: title, Description: description, Category: category, Theme: theme}
+func (s *PortfolioService) enrich(ps []model.Portfolio, err error) ([]model.Portfolio, error) {
+	if err != nil || len(ps) == 0 { return ps, err }
+	result, enrichErr := s.portfolioRepo.EnrichWithBlocks(ps)
+	if enrichErr != nil { return ps, enrichErr }
+	return result, nil
+}
+
+func (s *PortfolioService) Save(userID int, title, description, category, theme, avatarURL, status string, blocks []model.Block, tags []string) (*model.Portfolio, error) {
+	p := &model.Portfolio{
+		UserID: userID, Title: title, Description: description,
+		Category: category, Theme: theme, AvatarURL: avatarURL, Status: status,
+	}
 	if err := s.portfolioRepo.Upsert(p); err != nil { return nil, err }
 	if err := s.blockRepo.ReplaceAll(p.ID, blocks); err != nil { return nil, err }
 	if err := s.tagRepo.SetPortfolioTags(p.ID, tags); err != nil { return nil, err }
@@ -55,26 +65,21 @@ func (s *PortfolioService) RecordVisit(portfolioID int) error {
 }
 
 func (s *PortfolioService) Search(query, category string, tags []string, city, country, metro string) ([]model.Portfolio, error) {
-	return s.portfolioRepo.Search(query, category, tags, city, country, metro)
+	return s.enrich(s.portfolioRepo.Search(query, category, tags, city, country, metro))
 }
 
 func (s *PortfolioService) TopFiltered(category string, tags []string, limit int) ([]model.Portfolio, error) {
-	return s.portfolioRepo.TopFiltered(category, tags, limit)
+	return s.enrich(s.portfolioRepo.TopFiltered(category, tags, limit))
 }
 
 func (s *PortfolioService) RecentFiltered(category string, tags []string, limit int) ([]model.Portfolio, error) {
-	return s.portfolioRepo.RecentFiltered(category, tags, limit)
+	return s.enrich(s.portfolioRepo.RecentFiltered(category, tags, limit))
 }
 
 func (s *PortfolioService) NearbyFiltered(city, metro, category string, tags []string, limit int) ([]model.Portfolio, error) {
-	return s.portfolioRepo.NearbyFiltered(city, metro, category, tags, limit)
+	return s.enrich(s.portfolioRepo.NearbyFiltered(city, metro, category, tags, limit))
 }
 
 func (s *PortfolioService) TagsByProfession(category string) ([]string, error) {
 	return s.tagRepo.TagsByProfession(category)
-}
-
-func (s *PortfolioService) enrich(ps []model.Portfolio) []model.Portfolio {
-	result, _ := s.portfolioRepo.EnrichWithBlocks(ps)
-	return result
 }

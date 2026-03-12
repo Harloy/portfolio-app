@@ -1,28 +1,6 @@
+import { useState } from 'react'
 import { professionLabel } from '../config/professions'
-
-function extractPreviews(blocks = []) {
-  const previews = []
-  for (const block of blocks) {
-    if (previews.length >= 3) break
-    const c = (block.content || '').trim()
-    if (block.type === 'image' && c.startsWith('http')) {
-      previews.push(c)
-    }
-    if (block.type === 'video') {
-      let url = c
-      try { url = JSON.parse(c)?.url || c } catch {}
-      const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/)
-      if (yt) previews.push(`https://img.youtube.com/vi/${yt[1]}/mqdefault.jpg`)
-    }
-    if (block.type === 'case') {
-      try {
-        const img = JSON.parse(c)?.images?.[0]
-        if (img?.startsWith('http')) previews.push(img)
-      } catch {}
-    }
-  }
-  return previews
-}
+import BlockRenderer from './blocks/BlockRenderer'
 
 function extractLocation(blocks = []) {
   const loc = blocks.find(b => b.type === 'location')
@@ -34,46 +12,52 @@ function extractLocation(blocks = []) {
 }
 
 export default function SpecialistCard({ portfolio, onClick }) {
-  const previews = extractPreviews(portfolio.blocks)
-  const location = extractLocation(portfolio.blocks)
+  const [expanded, setExpanded] = useState(false)
+
+  const blocks   = portfolio.blocks || []
   const tags     = portfolio.tags || []
-  const title    = portfolio.title || 'Без названия'
+  const location = extractLocation(blocks)
+  const featured = blocks.filter(b => b.is_featured)
 
   return (
-    <div onClick={onClick}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
 
-      {/* Превью работ */}
-      <div className="grid grid-cols-3 gap-0.5 h-28">
-        {previews.length > 0
-          ? previews.map((src, i) => (
-              <img key={i} src={src}
-                className={`w-full h-full object-cover ${previews.length === 1 ? 'col-span-3' : previews.length === 2 ? 'col-span-1 first:col-span-2' : ''}`}
-                onError={e => { e.target.style.display = 'none' }} />
-            ))
-          : <div className="col-span-3 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-              <span className="text-3xl opacity-20">
-                {portfolio.category === 'photo' ? '📷' :
-                 portfolio.category === 'music' ? '🎵' :
-                 portfolio.category === 'design' ? '💻' : '✦'}
-              </span>
+      {/* Шапка — кликабельна для перехода */}
+      <div onClick={onClick} className="cursor-pointer p-4 flex flex-col gap-3">
+
+        {/* Аватар + имя + город */}
+        <div className="flex items-center gap-3">
+          {portfolio.avatar_url ? (
+            <img src={portfolio.avatar_url}
+              className="w-11 h-11 rounded-full object-cover flex-shrink-0 ring-2 ring-gray-100"
+              onError={e => { e.target.style.display = 'none' }} />
+          ) : (
+            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center flex-shrink-0 text-lg">
+              {portfolio.category === 'photo'   ? '📷' :
+               portfolio.category === 'music'   ? '🎵' :
+               portfolio.category === 'design'  ? '💻' :
+               portfolio.category === 'illustr' ? '🎨' : '✦'}
             </div>
-        }
-      </div>
-
-      {/* Контент */}
-      <div className="p-3 flex flex-col gap-2">
-
-        {/* Имя + город */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="font-semibold text-sm text-gray-900 leading-tight truncate">{title}</p>
-            {location && <p className="text-xs text-gray-400 truncate">📍 {location}</p>}
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm text-gray-900 truncate leading-tight">
+              {portfolio.title || 'Без названия'}
+            </p>
+            {location && (
+              <p className="text-xs text-gray-400 truncate">📍 {location}</p>
+            )}
           </div>
           {portfolio.score > 0 && (
             <span className="text-xs text-gray-300 flex-shrink-0">👁 {portfolio.score}</span>
           )}
         </div>
+
+        {/* Описание */}
+        {portfolio.description && (
+          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+            {portfolio.description}
+          </p>
+        )}
 
         {/* Теги */}
         <div className="flex flex-wrap gap-1">
@@ -82,14 +66,38 @@ export default function SpecialistCard({ portfolio, onClick }) {
               {professionLabel(portfolio.category)}
             </span>
           )}
-          {tags.slice(0, 2).map(tag => (
+          {portfolio.status && (
+            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full italic">
+              {portfolio.status}
+            </span>
+          )}
+          {tags.slice(0, 3).map(tag => (
             <span key={tag} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
               {tag}
             </span>
           ))}
         </div>
-
       </div>
+
+      {/* Кнопка развернуть — только если есть отмеченные блоки */}
+      {featured.length > 0 && (
+        <div className="border-t border-gray-50">
+          <button
+            onClick={e => { e.stopPropagation(); setExpanded(ex => !ex) }}
+            className="w-full py-2 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1">
+            {expanded
+              ? '▲ Свернуть'
+              : `▼ ${featured.length === 1 ? (featured[0].label || 'Показать работу') : `Показать работы (${featured.length})`}`
+            }
+          </button>
+
+          {expanded && (
+            <div className="px-4 pb-4 pt-2 border-t border-gray-50 flex flex-col gap-3">
+              <BlockRenderer blocks={featured} editMode={false} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

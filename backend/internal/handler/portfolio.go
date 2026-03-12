@@ -47,12 +47,15 @@ func (h *PortfolioHandler) Save(w http.ResponseWriter, r *http.Request) {
 		Description string        `json:"description"`
 		Category    string        `json:"category"`
 		Theme       string        `json:"theme"`
+		AvatarURL   string        `json:"avatar_url"`
+		Status      string        `json:"status"`
 		Blocks      []model.Block `json:"blocks"`
 		Tags        []string      `json:"tags"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 	if body.Theme == "" { body.Theme = "{}" }
-	p, err := h.svc.Save(userID, body.Title, body.Description, body.Category, body.Theme, body.Blocks, body.Tags)
+	p, err := h.svc.Save(userID, body.Title, body.Description, body.Category,
+		body.Theme, body.AvatarURL, body.Status, body.Blocks, body.Tags)
 	if err != nil { http.Error(w, err.Error(), http.StatusInternalServerError); return }
 	jsonOK(w, p)
 }
@@ -114,7 +117,6 @@ func (h *PortfolioHandler) Home(w http.ResponseWriter, r *http.Request) {
 		if city != "" {
 			nearby, _ = h.svc.NearbyFiltered(city, metro, category, tags, limit)
 		}
-		// Фолбэк — если нет результатов по городу, даём глобальный топ
 		if len(nearby) == 0 {
 			nearby, _ = h.svc.TopFiltered(category, tags, limit)
 		}
@@ -126,7 +128,7 @@ func (h *PortfolioHandler) Home(w http.ResponseWriter, r *http.Request) {
 		if recent == nil { recent = empty }
 		jsonOK(w, map[string]interface{}{"recent": recent})
 
-	default: // "score"
+	default:
 		top, _ := h.svc.TopFiltered(category, tags, limit)
 		if top == nil { top = empty }
 		jsonOK(w, map[string]interface{}{"top": top})
